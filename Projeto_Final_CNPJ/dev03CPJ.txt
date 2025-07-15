@@ -1,0 +1,247 @@
+       ID DIVISION.                                                     00010000
+       PROGRAM-ID. DEV03CPJ.                                            00020001
+      *---------------------------*                                     00030000
+      * VALIDA O CNPJ INFORMADO   *                                     00040000
+      *---------------------------*                                     00050000
+      *                                                                 00060000
+       ENVIRONMENT DIVISION.                                            00070000
+       CONFIGURATION SECTION.                                           00080000
+       SPECIAL-NAMES.                                                   00090000
+           DECIMAL-POINT IS COMMA.                                      00100000
+      *                                                                 00110000
+       DATA DIVISION.                                                   00120000
+      *                                                                 00130000
+       WORKING-STORAGE SECTION.                                         00140000
+      *                                                                 00141000
+       01 WRK-CNPJ-IDENTIFICADOR.                                       00141500
+          05 WRK-NUMERICO              PIC 9(001) VALUE ZERO.           00141600
+          05 WRK-ALFANUMERICO          PIC 9(001) VALUE ZERO.           00141700
+      *                                                                 00141800
+       01 WRK-CNPJ-TOTAL.                                               00141900
+          05 WRK-CNPJ-T                PIC X(008) VALUE SPACES.         00142000
+          05 WRK-FILIAL-T              PIC X(004) VALUE SPACES.         00142100
+      *                                                                 00142200
+       01 WRK-CNPJ-DECOMPOSTO REDEFINES WRK-CNPJ-TOTAL.                 00142300
+          05 WRK-CNPJ-DIGITO           PIC X(001) OCCURS 12.            00142400
+      *                                                                 00142500
+       01 WRK-CNPJ-VALOR.                                               00142600
+          05 WRK-VALOR-DIGITO          PIC 9(002) OCCURS 12.            00142700
+      *                                                                 00142900
+       77 WRK-I                        PIC 9(002).                      00143000
+      *                                                                 00143100
+       01 WRK-PESO                     PIC 9(001) VALUE ZERO.           00143200
+       01 WRK-VALOR-TOTAL              PIC 9(003) VALUE ZEROS.          00143300
+       01 WRK-RESTO                    PIC 9(002) VALUE ZEROS.          00143400
+       01 WRK-RESULTADO                PIC 9(002) VALUE ZEROS.          00143500
+      *                                                                 00143600
+       01 WRK-CONTROLE.                                                 00143700
+          05 WRK-DV-1                  PIC 9(001) VALUE ZERO.           00143800
+          05 WRK-DV-2                  PIC 9(001) VALUE ZERO.           00143900
+      *                                                                 00144000
+       LINKAGE SECTION.                                                 00144100
+      *                                                                 00145000
+       01 LNK-AREACNPJ.                                                 00150000
+          05 LNK-DADOS-CNPJ.                                            00160000
+             10 LNK-CNPJ               PIC X(008).                      00170000
+             10 LNK-FILIAL             PIC X(004).                      00180000
+             10 LNK-CONTROLE           PIC 9(002).                      00190000
+          05 LNK-CODRCNPJ              PIC X(002).                      00200000
+      *                                                                 00210000
+       PROCEDURE DIVISION USING LNK-AREACNPJ.                           00220000
+      *                                                                 00230000
+       0000-PRINCIPAL.                                                  00231000
+           MOVE 0 TO WRK-NUMERICO.
+           MOVE 0 TO WRK-ALFANUMERICO.
+           PERFORM 1000-VERIF-CNPJ-NUMERICO.                            00232000
+           PERFORM 1100-VERIF-FILIAL-NUMERICO.                          00233000
+           PERFORM 1200-VERIF-CNTRL-NUMERICO.                           00234000
+           PERFORM 2000-ATRIBUIR-VALOR-DIGITO.                          00235000
+           PERFORM 3000-CALCULAR-DV.                                    00236000
+           MOVE 'OK' TO LNK-CODRCNPJ.                                   00237000
+           GOBACK.                                                      00238002
+       0000-FIM-PRINCIPAL. EXIT.                                        00239000
+      *                                                                 00239100
+       1000-VERIF-CNPJ-NUMERICO.                                        00240000
+           IF LNK-CNPJ IS NUMERIC                                       00250000
+              IF LNK-CNPJ EQUAL ZEROS                                   00260000
+                 MOVE '**' TO LNK-CODRCNPJ                              00270000
+                 GOBACK                                                 00271000
+              ELSE                                                      00272000
+                 MOVE 1 TO WRK-NUMERICO                                 00273000
+              END-IF                                                    00280000
+           ELSE                                                         00290000
+              IF LNK-CNPJ EQUAL SPACES                                  00300000
+                 MOVE '**' TO LNK-CODRCNPJ                              00310000
+                 GOBACK                                                 00320000
+              ELSE                                                      00330000
+                 MOVE 1 TO WRK-ALFANUMERICO                             00340000
+              END-IF.                                                   00350000
+       1000-99-VERIF-CNPJ-NUMERICO. EXIT.                               00360000
+      *                                                                 00370000
+       1100-VERIF-FILIAL-NUMERICO.                                      00380000
+           IF LNK-FILIAL IS NUMERIC                                     00390000
+              IF LNK-FILIAL EQUAL ZEROS                                 00400000
+                 MOVE '**' TO LNK-CODRCNPJ                              00410000
+                 GOBACK                                                 00420000
+              ELSE                                                      00421000
+                 MOVE 1 TO WRK-NUMERICO                                 00422000
+              END-IF                                                    00430000
+           ELSE                                                         00440000
+              IF LNK-FILIAL EQUAL SPACES                                00450000
+                 MOVE '**' TO LNK-CODRCNPJ                              00460000
+                 GOBACK                                                 00470000
+              ELSE                                                      00471000
+                 MOVE 1 TO WRK-ALFANUMERICO                             00472000
+              END-IF.                                                   00480000
+       1100-99-VERIF-FILIAL-NUMERICO. EXIT.                             00490000
+      *                                                                 00500000
+       1200-VERIF-CNTRL-NUMERICO.                                       00510000
+           IF LNK-CONTROLE IS NOT NUMERIC                               00520000
+              MOVE '**' TO LNK-CODRCNPJ                                 00530000
+              GOBACK                                                    00540000
+           END-IF.
+       1200-99-VERIF-CNTRL-NUMERICO. EXIT.                              00550000
+      *                                                                 00560000
+      *---------------------------*                                     00570000
+      *ATRIBUIR VALOR DOS DIGITOS *                                     00580000
+      *---------------------------*                                     00590000
+       2000-ATRIBUIR-VALOR-DIGITO.                                      00600000
+           MOVE LNK-CNPJ               TO WRK-CNPJ-T.                   00601000
+           MOVE LNK-FILIAL             TO WRK-FILIAL-T.                 00602000
+           PERFORM VARYING WRK-I FROM 1 BY 1 UNTIL WRK-I > 12           00610000
+              IF WRK-NUMERICO EQUAL 1                                   00620000
+                    MOVE WRK-CNPJ-DIGITO(WRK-I) TO                      00630000
+                                                WRK-VALOR-DIGITO(WRK-I) 00640000
+              ELSE                                                      00650000
+                 EVALUATE WRK-CNPJ-DIGITO(WRK-I)                        00660000
+                    WHEN '0'                                            00661000
+                       MOVE 0  TO WRK-VALOR-DIGITO(WRK-I)               00662000
+                    WHEN '1'                                            00663000
+                       MOVE 1  TO WRK-VALOR-DIGITO(WRK-I)               00664000
+                    WHEN '2'                                            00665000
+                       MOVE 2  TO WRK-VALOR-DIGITO(WRK-I)               00666000
+                    WHEN '3'                                            00667000
+                       MOVE 3  TO WRK-VALOR-DIGITO(WRK-I)               00668000
+                    WHEN '4'                                            00669000
+                       MOVE 4  TO WRK-VALOR-DIGITO(WRK-I)               00669100
+                    WHEN '5'                                            00669200
+                       MOVE 5  TO WRK-VALOR-DIGITO(WRK-I)               00669300
+                    WHEN '6'                                            00669400
+                       MOVE 6  TO WRK-VALOR-DIGITO(WRK-I)               00669500
+                    WHEN '7'                                            00669600
+                       MOVE 7  TO WRK-VALOR-DIGITO(WRK-I)               00669700
+                    WHEN '8'                                            00669800
+                       MOVE 8  TO WRK-VALOR-DIGITO(WRK-I)               00669900
+                    WHEN '9'                                            00670000
+                       MOVE 9  TO WRK-VALOR-DIGITO(WRK-I)               00670100
+                    WHEN 'A'                                            00671000
+                       MOVE 17 TO WRK-VALOR-DIGITO(WRK-I)               00680000
+                    WHEN 'B'                                            00690000
+                       MOVE 18 TO WRK-VALOR-DIGITO(WRK-I)               00700000
+                    WHEN 'C'                                            00710000
+                       MOVE 19 TO WRK-VALOR-DIGITO(WRK-I)               00720000
+                    WHEN 'D'                                            00730000
+                       MOVE 20 TO WRK-VALOR-DIGITO(WRK-I)               00740000
+                    WHEN 'E'                                            00750000
+                       MOVE 21 TO WRK-VALOR-DIGITO(WRK-I)               00760000
+                    WHEN 'F'                                            00770000
+                       MOVE 22 TO WRK-VALOR-DIGITO(WRK-I)               00780000
+                    WHEN 'G'                                            00790000
+                       MOVE 23 TO WRK-VALOR-DIGITO(WRK-I)               00800000
+                    WHEN 'H'                                            00810000
+                       MOVE 24 TO WRK-VALOR-DIGITO(WRK-I)               00820000
+                    WHEN 'I'                                            00830000
+                       MOVE 25 TO WRK-VALOR-DIGITO(WRK-I)               00840000
+                    WHEN 'J'                                            00850000
+                       MOVE 26 TO WRK-VALOR-DIGITO(WRK-I)               00860000
+                    WHEN 'K'                                            00870000
+                       MOVE 27 TO WRK-VALOR-DIGITO(WRK-I)               00880000
+                    WHEN 'L'                                            00890000
+                       MOVE 28 TO WRK-VALOR-DIGITO(WRK-I)               00900000
+                    WHEN 'M'                                            00910000
+                       MOVE 29 TO WRK-VALOR-DIGITO(WRK-I)               00920000
+                    WHEN 'N'                                            00930000
+                       MOVE 30 TO WRK-VALOR-DIGITO(WRK-I)               00940000
+                    WHEN 'O'                                            00950000
+                       MOVE 31 TO WRK-VALOR-DIGITO(WRK-I)               00960000
+                    WHEN 'P'                                            00970000
+                       MOVE 32 TO WRK-VALOR-DIGITO(WRK-I)               00980000
+                    WHEN 'Q'                                            00990000
+                       MOVE 33 TO WRK-VALOR-DIGITO(WRK-I)               01000000
+                    WHEN 'R'                                            01010000
+                       MOVE 34 TO WRK-VALOR-DIGITO(WRK-I)               01020000
+                    WHEN 'S'                                            01030000
+                       MOVE 35 TO WRK-VALOR-DIGITO(WRK-I)               01040000
+                    WHEN 'T'                                            01050000
+                       MOVE 36 TO WRK-VALOR-DIGITO(WRK-I)               01060000
+                    WHEN 'U'                                            01070000
+                       MOVE 37 TO WRK-VALOR-DIGITO(WRK-I)               01080000
+                    WHEN 'V'                                            01090000
+                       MOVE 38 TO WRK-VALOR-DIGITO(WRK-I)               01100000
+                    WHEN 'W'                                            01110000
+                       MOVE 39 TO WRK-VALOR-DIGITO(WRK-I)               01120000
+                    WHEN 'X'                                            01130000
+                       MOVE 40 TO WRK-VALOR-DIGITO(WRK-I)               01140000
+                    WHEN 'Y'                                            01150000
+                       MOVE 41 TO WRK-VALOR-DIGITO(WRK-I)               01160000
+                    WHEN 'Z'                                            01170000
+                       MOVE 42 TO WRK-VALOR-DIGITO(WRK-I)               01180000
+                 END-EVALUATE                                           01190000
+              END-IF                                                    01190102
+           END-PERFORM.                                                 01191000
+       2000-99-ATRIBUIR-VALOR-DIGITO. EXIT.                             01200000
+      *                                                                 01210000
+      *------------------------------*                                  01211000
+      *CALCULAR O DIGITO VERIFICADOR *                                  01212000
+      *------------------------------*                                  01213000
+      *                                                                 01214000
+       3000-CALCULAR-DV.                                                01220000
+           MOVE ZEROS TO WRK-VALOR-TOTAL
+           MOVE 5 TO WRK-PESO                                           01221000
+           PERFORM VARYING WRK-I FROM 1 BY 1 UNTIL WRK-I > 12           01230000
+              IF WRK-PESO EQUAL 1                                       01240000
+                 MOVE 9 TO WRK-PESO                                     01250000
+              END-IF                                                    01260000
+              COMPUTE WRK-VALOR-TOTAL = WRK-VALOR-TOTAL +               01270000
+                              WRK-VALOR-DIGITO(WRK-I) * WRK-PESO        01280000
+              SUBTRACT 1 FROM WRK-PESO                                  01290000
+           END-PERFORM.                                                 01300000
+      *                                                                 01310000
+           DIVIDE WRK-VALOR-TOTAL BY 11 GIVING WRK-RESULTADO            01320000
+                                        REMAINDER WRK-RESTO             01321000
+
+           IF WRK-RESTO EQUAL 0 OR WRK-RESTO EQUAL 1                    01330000
+              MOVE ZERO TO WRK-DV-1                                     01340000
+           ELSE                                                         01350000
+              COMPUTE WRK-DV-1 = 11 - WRK-RESTO                         01360000
+           END-IF.                                                      01370000
+      *                                                                 01380000
+           MOVE 6 TO WRK-PESO                                           01390000
+           MOVE ZERO TO WRK-VALOR-TOTAL
+
+           PERFORM VARYING WRK-I FROM 1 BY 1 UNTIL WRK-I > 12           01400000
+               IF WRK-PESO EQUAL 1                                      01410000
+                  MOVE 9 TO WRK-PESO                                    01420000
+               END-IF                                                   01430000
+               COMPUTE WRK-VALOR-TOTAL = WRK-VALOR-TOTAL +              01440000
+                               WRK-VALOR-DIGITO(WRK-I) * WRK-PESO       01450000
+               SUBTRACT 1 FROM WRK-PESO                                 01460000
+           END-PERFORM.                                                 01470000
+           COMPUTE WRK-VALOR-TOTAL = WRK-VALOR-TOTAL + WRK-DV-1 *       01480000
+                                                       WRK-PESO         01481000
+      *                                                                 01490000
+           DIVIDE WRK-VALOR-TOTAL BY 11 GIVING WRK-RESULTADO            01500000
+                                               REMAINDER WRK-RESTO      01501000
+           IF WRK-RESTO EQUAL 0 OR WRK-RESTO EQUAL 1                    01510000
+              MOVE ZERO TO WRK-DV-2                                     01520000
+           ELSE                                                         01530000
+              COMPUTE WRK-DV-2 = 11 - WRK-RESTO                         01540000
+           END-IF.                                                      01550000
+      *                                                                 01551000
+      *    DISPLAY 'CNPJ REAL ' LNK-DADOS-CNPJ.                         01551000
+      *    DISPLAY 'CNPJ CALC ' WRK-CNPJ-DECOMPOSTO WRK-CONTROLE.       01551000
+           IF LNK-CONTROLE NOT EQUAL WRK-CONTROLE                       01560000
+              MOVE '**' TO LNK-CODRCNPJ                                 01570000
+              GOBACK                                                    01571000
+           END-IF.                                                      01580000
+       3000-99-CALCULAR-DV. EXIT.                                       01590000

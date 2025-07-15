@@ -1,0 +1,682 @@
+       ID DIVISION.
+       PROGRAM-ID. DEV03P10.
+      *
+      *---------------------------------------*
+      * ATUALIZACAO DO CADASTRO DE CLIENTES PJ*
+      *---------------------------------------*
+      *
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DADOSCLI ASSIGN TO ENTRADA
+             FILE STATUS WRK-FS-DADOSCLI.
+           SELECT RLINCONS ASSIGN TO SAIDA
+             FILE STATUS WRK-FS-RLINCONS.
+      *
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DADOSCLI
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS.
+       01  REG-DADOSCLI                PIC  X(080).
+       FD  RLINCONS
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS.
+       01  REG-RLINCONS                PIC  X(080).
+       WORKING-STORAGE SECTION.
+      *
+      * VARIAVEIS PARA ARQUIVOS
+      *
+       01  WRK-FS-DADOSCLI             PIC  X(002) VALUE SPACE.
+       01  WRK-FS-RLINCONS             PIC  X(002) VALUE SPACE.
+
+       COPY DEVBKCLI.
+
+       COPY DEVRELTO.
+      *
+      * VARIAVEIS PARA DB
+      *
+           EXEC SQL INCLUDE SQLCA END-EXEC.
+
+	          EXEC SQL INCLUDE DCLCLIPJ END-EXEC.
+	     *
+	      01 WRK-NULLIND-CNPJ-N   COMP     PIC  S9(004) VALUE +0.
+	      01 WRK-NULLIND-CNPJ-A   COMP     PIC  S9(004) VALUE +0.
+	      01 WRK-NULLIND-FIL-N    COMP     PIC  S9(004) VALUE +0.
+	      01 WRK-NULLIND-FIL-A    COMP     PIC  S9(004) VALUE +0.
+	      01 WRK-NULLIND-DATA-I   COMP     PIC  S9(004) VALUE +0.
+	     *
+	      01  WRK-DATA-DB.
+		         10  WRK-DIA             PIC  9(002) VALUE ZEROS.
+		         10  WRK-MES             PIC  9(002) VALUE ZEROS.
+	          10  WRK-ANO             PIC  9(004) VALUE ZEROS.
+	
+	      01  WRK-DATA-DB-F.
+		         10  WRK-DIA             PIC  9(002) VALUE ZEROS.
+		         10  FILLER              PIC  X(001) VALUE '.'.
+		         10  WRK-MES             PIC  9(002) VALUE ZEROS.
+		         10  FILLER              PIC  X(001) VALUE '.'.
+           10  WRK-ANO             PIC  9(004) VALUE ZEROS.
+      *
+      * VARIAVEIS PARA SUBPROGRAMAS
+      *
+       01  WRK-PROG-CNPJ                 PIC  X(008) VALUE 'DEV03CPJ'.
+       01  WRK-PROG-DATA                 PIC  X(008) VALUE 'DEVCDATA'.
+
+       01  WRK-AREA-CNPJ.
+           05  WRK-DADOS-CNPJ.
+               10  WRK-CNPJ            PIC  X(008) VALUE SPACES.
+               10  WRK-FILIAL          PIC  X(004) VALUE SPACES.
+               10  WRK-CONTROLE        PIC  9(002) VALUE ZEROS.
+           05  WRK-CODRCNPJ            PIC  X(002) VALUE SPACES.
+
+       01  WRK-DEVCDATA.
+           05  WRK-DATADEV             PIC  9(008) VALUE ZEROS.
+           05  WRK-CODRDEV             PIC  X(002) VALUE SPACES.
+      *
+      * VARIAVEIS DE AUXILIO
+      *
+       01  WRK-QTD-LIDOS        COMP-3   PIC  9(003)    VALUE ZERO.
+       01  WRK-QTD-GRAVADOS     COMP-3   PIC  9(003)    VALUE ZERO.
+       01  WRK-QTD-DESPREZADOS  COMP-3   PIC  9(003)    VALUE ZERO.
+       01  WRK-CONT-LINHAS      COMP-3   PIC  9(002)    VALUE 60.
+       01  WRK-CONT-PAG         COMP-3   PIC  9(002)    VALUE ZERO.
+       01  WRK-I                COMP-3   PIC  9(001)    VALUE ZERO.
+		
+       01  WRK-DATADEV-INV             PIC  9(008) VALUE ZEROS.
+
+       01  WRK-DATA.
+		         05  WRK-ANO             PIC  9(004) VALUE ZEROS.
+		         05  WRK-MES             PIC  9(002) VALUE ZEROS.
+		         05  WRK-DIA             PIC  9(002) VALUE ZEROS.
+		
+       01  WRK-HORARIO.
+           05 WRK-HORA                 PIC  9(002) VALUE ZEROS.
+           05 WRK-MIN                  PIC  9(002) VALUE ZEROS.
+           05 WRK-SEG                  PIC  9(002) VALUE ZEROS.
+      *
+      * MENSAGENS
+      *
+       01  MSG-INICIO.
+           05  FILLER                  PIC  X(040) VALUE 'DEV03P10 - INI
+      -    'CIO DO PROCESSAMENTO'.
+
+       01  MSG-DATAHORA.
+           05  FILLER                  PIC  X(017) VALUE
+           'DEV03P10 - DATA: '.
+           05  MSG-DATA.
+               10  MSG-DIA             PIC  9(002) VALUE ZEROS.
+               10  FILLER              PIC  X(001) VALUE '/'.
+               10  MSG-MES             PIC  9(002) VALUE ZEROS.
+               10  FILLER              PIC  X(001) VALUE '/'.
+               10  MSG-ANO             PIC  9(002) VALUE ZEROS.
+           05  FILLER                  PIC  X(009) VALUE ' - HORA: '.
+           05  MSG-HORARIO.
+               10  WRK-HORA            PIC  9(002) VALUE ZEROS.
+               10  FILLER              PIC  X(001) VALUE ':'.
+               10  WRK-MIN             PIC  9(002) VALUE ZEROS.
+               10  FILLER              PIC  X(001) VALUE ':'.
+               10  WRK-SEG             PIC  9(002) VALUE ZEROS.
+
+       01  MSG-FINAL.
+           05  FILLER                  PIC  X(040) VALUE 'DEV03P10 - PRO
+      -    'CESSAMENTO ENCERRADO'.
+
+       01  MSG-ARQ-VAZIO.
+           05  FILLER                  PIC  X(033) VALUE
+           'DEV03P10 - ARQUIVO DADOSCLI VAZIO'.
+
+       01  MSG-TOT-LIDOS.
+           05  FILLER                  PIC  X(043) VALUE
+           'DEV03P10 - TOTAL DE REGISTROS LIDOS......: '.
+           05  MSG-QTD-LIDOS           PIC  9(003) VALUE ZERO.
+
+       01  MSG-TOT-ATUALIZADOS.
+           05  FILLER                  PIC  X(043) VALUE
+           'DEV03P10 - TOTAL DE REGISTROS ATUALIZADOS: '.
+           05  MSG-QTD-GRAVADOS        PIC  9(003) VALUE ZERO.
+
+       01  MSG-TOT-DESPREZADOS.
+           05  FILLER                  PIC  X(043) VALUE
+           'DEV03P10 - TOTAL DE REGISTROS DESPREZADOS: '.
+           05  MSG-QTD-DESPREZADOS     PIC  9(003) VALUE ZERO.
+
+       01  MSG-ERRO.
+           05 FILLER                   PIC  X(032) VALUE
+           'DEV03P10 - ERRO NO PROCESSAMENTO'.
+
+       01  MSG-NOME-ARQ.
+           05 FILLER                   PIC  X(022) VALUE
+           'DEV03P10 - ARQUIVO..: '.
+           05 WRK-NOME-ARQ             PIC  X(009) VALUE SPACES.
+
+       01  MSG-NOME-OP.
+           05 FILLER                   PIC  X(022) VALUE
+           'DEV03P10 - OPERACAO.: '.
+           05 WRK-NOME-OP              PIC  X(008) VALUE SPACES.
+
+       01  MSG-FILE-STATUS.
+           05 FILLER                   PIC  X(022) VALUE
+           'DEV03P10 - COD. ERRO: '.
+           05 WRK-FS                   PIC  X(002) VALUE SPACES.
+
+       01  MSG-NOME-DB2                PIC  X(030) VALUE
+           'DEV03P10 - TABELA...: CLIENTPJ'.
+
+       01  MSG-SQLERROR.
+           05 FILLER                   PIC  X(022) VALUE
+           'DEV03P10 - SQLCODE..: '.
+           05 MSG-SQLCODE              PIC -9(005) VALUE ZERO.
+
+       01  WRK-SQLCODE                 PIC -9(005) VALUE ZERO.
+      *
+       PROCEDURE DIVISION.
+       0000-PRINCIPAL.
+           PERFORM 1000-INICIALIZAR.
+           PERFORM 2000-PROCESSAR
+             UNTIL WRK-FS-DADOSCLI = '10'.
+           PERFORM 12000-FINALIZAR.
+           STOP RUN.
+       0000-99-PRINCIPAL. EXIT.
+      *
+       1000-INICIALIZAR.
+           ACCEPT WRK-DATA FROM DATE YYYYMMDD.
+           ACCEPT WRK-HORARIO FROM TIME.
+           MOVE CORR WRK-HORARIO TO MSG-HORARIO.
+
+           MOVE ALL '/' TO CB1-DATA.
+           MOVE WRK-DATA (1:4) TO CB1-DATA (7:4).
+           MOVE WRK-DATA (3:2) TO MSG-ANO.
+           MOVE WRK-DATA (5:2) TO MSG-MES CB1-DATA (4:2).
+           MOVE WRK-DATA (7:2) TO MSG-DIA CB1-DATA (1:2).
+
+           DISPLAY MSG-INICIO.
+           DISPLAY MSG-DATAHORA.
+           DISPLAY ' '.
+           MOVE 'OPEN' TO WRK-NOME-OP.
+           OPEN INPUT DADOSCLI.
+           PERFORM 3000-VER-ERRO-DADOSCLI.
+           OPEN OUTPUT RLINCONS.
+           PERFORM 3100-VER-ERRO-RLINCONS.
+       1000-99-INICIALIZAR. EXIT.
+      *
+       2000-PROCESSAR.
+           MOVE 'READ' TO WRK-NOME-OP.
+           MOVE ZERO TO WRK-I.
+           INITIALIZE DCLCLIENTPJ.
+           INITIALIZE LINDET1.
+           INITIALIZE ERRO-LINHAS.
+           INITIALIZE LINDET3.
+           INITIALIZE LINDET4.
+
+           READ DADOSCLI INTO PRF-DADOSCLI.
+           PERFORM 3000-VER-ERRO-DADOSCLI.
+           IF WRK-FS-DADOSCLI NOT = '10'
+              ADD 1 TO WRK-QTD-LIDOS
+              PERFORM 5000-PROCESSAR-REGISTRO
+           END-IF.
+       2000-99-PROCESSAR. EXIT.
+      *
+      * VERIFICACAO DE ERROS
+      *
+       3000-VER-ERRO-DADOSCLI.
+           IF WRK-FS-DADOSCLI NOT = '00' AND NOT = '10'
+              MOVE 'DADOSCLI' TO WRK-NOME-ARQ
+              MOVE WRK-FS-DADOSCLI TO WRK-FS
+              PERFORM 4000-DISPLAY-ERRO
+           END-IF.
+       3000-99-VER-ERRO-DADOSCLI. EXIT.
+      *
+       3100-VER-ERRO-RLINCONS.
+           IF WRK-FS-RLINCONS NOT = '00'
+              MOVE 'RLINCONS' TO WRK-NOME-ARQ
+              MOVE WRK-FS-RLINCONS TO WRK-FS
+              PERFORM 4000-DISPLAY-ERRO
+           END-IF.
+       3100-99-VER-ERRO-RLINCONS. EXIT.
+      *
+       4000-DISPLAY-ERRO.
+           DISPLAY ' '.
+           DISPLAY MSG-ERRO.
+           DISPLAY MSG-NOME-ARQ.
+           DISPLAY MSG-NOME-OP.
+           DISPLAY MSG-FILE-STATUS.
+           DISPLAY ' '.
+           DISPLAY MSG-FINAL.
+
+           MOVE 12 TO RETURN-CODE.
+           GOBACK.
+       4000-99-DISPLAY-ERRO. EXIT.
+      *
+      * VERIFICA OPERACAO
+      *
+       5000-PROCESSAR-REGISTRO.
+           MOVE PRF-OPERACAO TO LD1-OPER.
+           EVALUATE PRF-OPERACAO
+              WHEN 'N'
+                   MOVE 'NOVO CLIENTE' TO LD1-DESCOPER
+                   PERFORM 6000-VALIDA-NOVO
+              WHEN 'A'
+                   MOVE 'ATUALIZACAO'  TO LD1-DESCOPER
+                   PERFORM 7000-VALIDA-ATUALIZACAO
+              WHEN 'I'
+                   MOVE 'INATIVACAO'   TO LD1-DESCOPER
+                   PERFORM 8000-VALIDA-INATIVACAO
+              WHEN OTHER
+                   MOVE 'OPERACAO INVALIDA' TO LD1-RESULTADO
+                   ADD 1 TO WRK-QTD-DESPREZADOS
+                   PERFORM 10000-PREENCHER-RELATORIO
+           END-EVALUATE.
+       5000-99-PROCESSAR-REGISTRO. EXIT.
+      *
+      * VALIDA OPERACOES
+      *
+	      6000-VALIDA-NOVO.
+		         MOVE 'SELECT' TO WRK-NOME-OP.
+		         PERFORM 13000-PROCURA-REG-DB.
+		         PERFORM 18000-VER-ERRO-SQL.
+		
+		         IF PRF-CODIGOCLI NUMERIC AND PRF-CODIGOCLI NOT = ZERO
+           AND SQLCODE = +100
+              PERFORM 9000-VALIDA-RAZSOCIAL
+              PERFORM 9100-VALIDA-VLRULTCOMPRA
+              PERFORM 9200-VALIDA-DATAOPER
+              PERFORM 9300-VALIDA-CODRCNPJ
+           ELSE
+              MOVE 'ERRO NUM. CLIENTE' TO LD1-RESULTADO
+           END-IF.
+
+           IF LD1-RESULTADO = SPACE
+			           MOVE 'INSERT' TO WRK-NOME-OP
+			           PERFORM 15000-INSERE-DB
+			           PERFORM 18000-VER-ERRO-SQL
+              MOVE 'OPERACAO REALIZADA' TO LD1-RESULTADO
+              ADD 1 TO WRK-QTD-GRAVADOS
+           ELSE
+              ADD 1 TO WRK-QTD-DESPREZADOS
+           END-IF.
+
+           PERFORM 10000-PREENCHER-RELATORIO.
+       6000-99-VALIDA-NOVO. EXIT.
+      *
+       7000-VALIDA-ATUALIZACAO.
+			        MOVE 'SELECT' TO WRK-NOME-OP.
+		         PERFORM 14000-SEL-ATRIBUTOS-REG.
+           PERFORM 18000-VER-ERRO-SQL.
+
+			        IF PRF-CODIGOCLI NUMERIC AND PRF-CODIGOCLI NOT = ZERO
+           AND SQLCODE = +0 AND WRK-NULLIND-DATA-I = -1
+              PERFORM 15500-MOVE-PARA-VAR-DB
+           ELSE
+              MOVE 'ERRO NUM. CLIENTE' TO LD1-RESULTADO
+           END-IF.
+
+           IF LD1-RESULTADO = SPACE
+			           MOVE 'UPDATE' TO WRK-NOME-OP
+			           PERFORM 16000-ATUALIZA-DB
+			           PERFORM 18000-VER-ERRO-SQL
+			
+              MOVE 'OPERACAO REALIZADA' TO LD1-RESULTADO
+              ADD 1 TO WRK-QTD-GRAVADOS
+           ELSE
+              ADD 1 TO WRK-QTD-DESPREZADOS
+           END-IF.
+
+           PERFORM 10000-PREENCHER-RELATORIO.
+       7000-99-VALIDA-ATUALIZACAO. EXIT.
+      *
+       8000-VALIDA-INATIVACAO.
+			        MOVE 'SELECT' TO WRK-NOME-OP.
+		         PERFORM 14000-SEL-ATRIBUTOS-REG.
+           PERFORM 18000-VER-ERRO-SQL.
+
+			        IF PRF-CODIGOCLI NUMERIC AND PRF-CODIGOCLI NOT = ZERO
+           AND SQLCODE = +0 AND WRK-NULLIND-DATA-I = -1
+              PERFORM 9200-VALIDA-DATAOPER
+           ELSE
+              MOVE 'ERRO NUM. CLIENTE' TO LD1-RESULTADO
+           END-IF.
+
+           IF LD1-RESULTADO = SPACE
+			           MOVE 'UPDATE' TO WRK-NOME-OP
+			           PERFORM 17000-INATIVA-REG
+			           PERFORM 18000-VER-ERRO-SQL
+			
+              MOVE 'OPERACAO REALIZADA' TO LD1-RESULTADO
+              ADD 1 TO WRK-QTD-GRAVADOS
+           ELSE
+              ADD 1 TO WRK-QTD-DESPREZADOS
+           END-IF.
+
+           PERFORM 10000-PREENCHER-RELATORIO.
+       8000-99-VALIDA-INATIVACAO. EXIT.
+      *
+      * VALIDA ATRIBUTOS
+      *
+       9000-VALIDA-RAZSOCIAL.
+           IF PRF-RAZAOSOCIAL = SPACES
+              MOVE 'REG. INCONSISTENTE' TO LD1-RESULTADO
+              ADD 1 TO WRK-I
+              MOVE 'ERRO RZ SOCIAL' TO LD2-RESULTADO (WRK-I)
+           END-IF.
+       9000-99-VALIDA-RAZSOCIAL. EXIT.
+      *
+       9100-VALIDA-VLRULTCOMPRA.
+           IF PRF-VLRULTCOMPRA NOT NUMERIC OR PRF-VLRULTCOMPRA = ZERO
+              MOVE 'REG. INCONSISTENTE' TO LD1-RESULTADO
+              ADD 1 TO WRK-I
+              MOVE 'ERRO VALOR' TO LD2-RESULTADO (WRK-I)
+           END-IF.
+       9100-99-VALIDA-VLRULTCOMPRA. EXIT.
+      *
+       9200-VALIDA-DATAOPER.
+           IF PRF-DATAOPER NOT NUMERIC OR PRF-DATAOPER = ZERO
+              MOVE 'REG. INCONSISTENTE' TO LD1-RESULTADO
+              ADD 1 TO WRK-I
+              MOVE 'ERRO DATA' TO LD2-RESULTADO (WRK-I)
+			        ELSE
+			           MOVE PRF-DATAOPER (5:4) TO WRK-DATADEV (1:4)
+			           MOVE PRF-DATAOPER (3:2) TO WRK-DATADEV (5:2)
+			           MOVE PRF-DATAOPER (1:2) TO WRK-DATADEV (7:2)
+			           CALL WRK-PROG-DATA USING WRK-DEVCDATA
+			
+			           IF WRK-CODRDEV = '**' OR WRK-DATA < WRK-DATADEV
+					            MOVE 'REG. INCONSISTENTE' TO LD1-RESULTADO
+					            ADD 1 TO WRK-I
+			              MOVE 'ERRO DATA' TO LD2-RESULTADO (WRK-I)
+              END-IF
+           END-IF.
+       9200-99-VALIDA-DATAOPER. EXIT.
+      *
+       9300-VALIDA-CODRCNPJ.
+           MOVE PRF-CNPJ TO WRK-CNPJ.
+           MOVE PRF-FILIAL TO WRK-FILIAL.
+           MOVE PRF-CONTROLE TO WRK-CONTROLE.
+           CALL WRK-PROG-CNPJ USING WRK-AREA-CNPJ.
+
+           IF WRK-CODRCNPJ = '**'
+              MOVE 'REG. INCONSISTENTE' TO LD1-RESULTADO
+              ADD 1 TO WRK-I
+              MOVE 'ERRO CNPJ' TO LD2-RESULTADO (WRK-I)
+           END-IF.
+       9300-99-VALIDA-CODRCNPJ. EXIT.
+      *
+      * RELATORIO
+      *
+       10000-PREENCHER-RELATORIO.
+           MOVE PRF-CODIGOCLI TO LD3-NUMCLI.
+           MOVE PRF-RAZAOSOCIAL TO LD3-RAZSOCIAL.
+           MOVE PRF-CNPJ TO LD4-CNPJ.
+           MOVE PRF-FILIAL TO LD4-FILIAL.
+           MOVE PRF-CONTROLE TO LD4-CONTROLE.
+           MOVE PRF-VLRULTCOMPRA TO LD4-VLRULTCOMPRA.
+           MOVE PRF-DATAOPER TO LD4-DATAOPER.
+
+           PERFORM 11000-IMPRIMIR-RELATORIO.
+       10000-99-PREENCHER-RELATORIO. EXIT.
+      *
+       11000-IMPRIMIR-RELATORIO.
+           MOVE 'WRITE' TO WRK-NOME-OP.
+           IF WRK-CONT-LINHAS = 60
+              MOVE ZERO TO WRK-CONT-LINHAS
+              ADD 1 TO WRK-CONT-PAG
+              MOVE WRK-CONT-PAG TO CB1-PAG
+
+              WRITE REG-RLINCONS FROM CABEC1 AFTER PAGE
+              PERFORM 3100-VER-ERRO-RLINCONS
+           END-IF.
+			        MOVE ALL '-' TO REG-RLINCONS.
+			        WRITE REG-RLINCONS AFTER 1.
+			
+           WRITE REG-RLINCONS FROM LINDET1 AFTER 1.
+           PERFORM 3100-VER-ERRO-RLINCONS.
+
+           PERFORM VARYING WRK-I FROM 1 BY 1 UNTIL WRK-I = 5
+              WRITE REG-RLINCONS FROM LINDET2 (WRK-I) AFTER 1
+              PERFORM 3100-VER-ERRO-RLINCONS
+           END-PERFORM.
+
+           WRITE REG-RLINCONS FROM CABEC2 AFTER 1.
+           PERFORM 3100-VER-ERRO-RLINCONS.
+
+           WRITE REG-RLINCONS FROM LINDET3 AFTER 1.
+           PERFORM 3100-VER-ERRO-RLINCONS.
+
+           WRITE REG-RLINCONS FROM CABEC3 AFTER 1.
+           PERFORM 3100-VER-ERRO-RLINCONS.
+
+           WRITE REG-RLINCONS FROM LINDET4 AFTER 1.
+           PERFORM 3100-VER-ERRO-RLINCONS.
+
+           ADD 10 TO WRK-CONT-LINHAS.
+       11000-99-IMPRIMIR-RELATORIO. EXIT.
+      *
+      * FINALIZACAO
+      *
+       12000-FINALIZAR.
+           MOVE 'CLOSE' TO WRK-NOME-OP.
+           CLOSE DADOSCLI.
+           PERFORM 3000-VER-ERRO-DADOSCLI.
+           CLOSE RLINCONS.
+           PERFORM 3100-VER-ERRO-RLINCONS.
+
+           IF WRK-QTD-LIDOS = 0
+              MOVE 4 TO RETURN-CODE
+              DISPLAY MSG-ARQ-VAZIO
+           ELSE
+              MOVE WRK-QTD-LIDOS TO MSG-QTD-LIDOS
+              MOVE WRK-QTD-GRAVADOS TO MSG-QTD-GRAVADOS
+              MOVE WRK-QTD-DESPREZADOS TO MSG-QTD-DESPREZADOS
+              DISPLAY MSG-TOT-LIDOS
+              DISPLAY MSG-TOT-ATUALIZADOS
+              DISPLAY MSG-TOT-DESPREZADOS
+           END-IF.
+           DISPLAY ' '.
+           DISPLAY MSG-FINAL.
+       12000-99-FINALIZAR. EXIT.
+	     *
+	     * QUERIES DE DB
+	     *
+	      13000-PROCURA-REG-DB.
+           MOVE PRF-CODIGOCLI TO CODIGO-CLI
+		         EXEC SQL
+		         SELECT CODIGO_CLI INTO :CODIGO-CLI
+           FROM ALUNO03.CLIENTPJ
+	          WHERE CODIGO_CLI = :CODIGO-CLI
+	          END-EXEC.
+	      13000-99-PROCURA-REG-DB. EXIT.
+	     *
+	      14000-SEL-ATRIBUTOS-REG.
+           MOVE PRF-CODIGOCLI TO CODIGO-CLI
+		         EXEC SQL
+		         SELECT
+		            RAZSOCIAL_CLI, NUMECNPJ_CLI,
+		            FILIALCNPJ_CLI, CTLCNPJ_CLI, NUMECNPJA_CLI,
+		            FILIALCNPJA_CLI, SALDO_CLI, VRULTCOMPRA_CLI,
+		            DTINATIVA_CLI
+		         INTO
+		            :RAZSOCIAL-CLI, :NUMECNPJ-CLI:WRK-NULLIND-CNPJ-N,
+		            :FILIALCNPJ-CLI:WRK-NULLIND-FIL-N, :CTLCNPJ-CLI,
+		            :NUMECNPJA-CLI:WRK-NULLIND-CNPJ-A,
+		            :FILIALCNPJA-CLI:WRK-NULLIND-FIL-A, :SALDO-CLI,
+			           :VRULTCOMPRA-CLI,
+		            :DTINATIVA-CLI:WRK-NULLIND-DATA-I
+		         FROM ALUNO03.CLIENTPJ
+	          WHERE CODIGO_CLI = :CODIGO-CLI
+	          END-EXEC.
+	      14000-99-SEL-ATRIBUTOS-REG. EXIT.
+	     *
+	     * FORMATA DATAS PARA DB
+	     *
+	      14500-MOVE-DATAS-DB.
+			        MOVE PRF-DATAOPER TO WRK-DATA-DB.
+			        MOVE CORR WRK-DATA-DB TO WRK-DATA-DB-F.
+			        MOVE WRK-DATA-DB-F TO DTULTCOMPRA-CLI.
+			
+			        MOVE CORR WRK-DATA TO WRK-DATA-DB-F.
+	          MOVE WRK-DATA-DB-F TO DTATLZDADOS-CLI.
+	      14500-99-MOVE-DATAS-DB. EXIT.
+      *
+      * INSERCAO NO BD
+      *
+       15000-INSERE-DB.
+			        IF PRF-CNPJ IS NUMERIC
+				          MOVE PRF-CNPJ TO NUMECNPJ-CLI
+			           MOVE 0 TO WRK-NULLIND-CNPJ-N
+			           MOVE -1 TO WRK-NULLIND-CNPJ-A
+			        ELSE
+				          MOVE PRF-CNPJ TO NUMECNPJA-CLI
+				          MOVE 0 TO WRK-NULLIND-CNPJ-A
+			           MOVE -1 TO WRK-NULLIND-CNPJ-N
+			        END-IF.
+			
+			        IF PRF-FILIAL IS NUMERIC
+				          MOVE PRF-FILIAL TO FILIALCNPJ-CLI
+				          MOVE 0 TO WRK-NULLIND-FIL-N
+			           MOVE -1 TO WRK-NULLIND-FIL-A
+			        ELSE
+				          MOVE PRF-FILIAL TO FILIALCNPJA-CLI
+				          MOVE 0 TO WRK-NULLIND-FIL-A
+			           MOVE -1 TO WRK-NULLIND-FIL-N
+			        END-IF.
+			
+			        PERFORM 14500-MOVE-DATAS-DB.
+			
+			        MOVE -1 TO WRK-NULLIND-DATA-I.
+			
+           MOVE PRF-CODIGOCLI TO CODIGO-CLI.
+           MOVE PRF-RAZAOSOCIAL TO RAZSOCIAL-CLI.
+           MOVE PRF-CONTROLE TO CTLCNPJ-CLI.
+           MOVE PRF-VLRULTCOMPRA TO VRULTCOMPRA-CLI.
+			        EXEC SQL
+			        INSERT INTO ALUNO03.CLIENTPJ
+			           (CODIGO_CLI, RAZSOCIAL_CLI, NUMECNPJ_CLI,
+			           FILIALCNPJ_CLI, CTLCNPJ_CLI, NUMECNPJA_CLI,
+			           FILIALCNPJA_CLI, SALDO_CLI, VRULTCOMPRA_CLI,
+			           DTULTCOMPRA_CLI, DTATLZDADOS_CLI, DTINATIVA_CLI)
+			        VALUES
+			           (:CODIGO-CLI, :RAZSOCIAL-CLI,
+			           :NUMECNPJ-CLI:WRK-NULLIND-CNPJ-N,
+			           :FILIALCNPJ-CLI:WRK-NULLIND-FIL-N, :CTLCNPJ-CLI,
+			           :NUMECNPJA-CLI:WRK-NULLIND-CNPJ-A,
+			           :FILIALCNPJA-CLI:WRK-NULLIND-FIL-A,
+			           :VRULTCOMPRA-CLI, :VRULTCOMPRA-CLI,
+			           :DTULTCOMPRA-CLI, :DTATLZDADOS-CLI,
+	             :DTINATIVA-CLI:WRK-NULLIND-DATA-I)
+	          END-EXEC.
+	      15000-99-INSERE-DB. EXIT.
+	     *
+	     * ATUALIZACAO DB
+	     *
+	      15500-MOVE-PARA-VAR-DB.
+		         PERFORM 9200-VALIDA-DATAOPER
+				
+		         IF PRF-RAZAOSOCIAL NOT = ZERO
+		            MOVE PRF-RAZAOSOCIAL TO RAZSOCIAL-CLI
+		         END-IF
+		
+		         IF PRF-VLRULTCOMPRA NOT = ZERO
+			           PERFORM 9100-VALIDA-VLRULTCOMPRA
+			           IF LD1-RESULTADO = SPACE
+			              MOVE PRF-VLRULTCOMPRA TO VRULTCOMPRA-CLI
+		               ADD PRF-VLRULTCOMPRA TO SALDO-CLI
+              END-IF
+           END-IF
+
+		         IF PRF-CNPJ NOT = SPACE
+			           PERFORM 9300-VALIDA-CODRCNPJ
+			
+			           IF LD1-RESULTADO = SPACE
+					              IF PRF-CNPJ IS NUMERIC
+						             MOVE PRF-CNPJ TO NUMECNPJ-CLI
+						                MOVE 0 TO WRK-NULLIND-CNPJ-N
+					                 MOVE -1 TO WRK-NULLIND-CNPJ-A
+					              ELSE
+						                MOVE PRF-CNPJ TO NUMECNPJA-CLI
+						                MOVE 0 TO WRK-NULLIND-CNPJ-A
+					                 MOVE -1 TO WRK-NULLIND-CNPJ-N
+					              END-IF
+					
+					              IF PRF-FILIAL IS NUMERIC
+						                MOVE PRF-FILIAL TO FILIALCNPJ-CLI
+						                MOVE 0 TO WRK-NULLIND-FIL-N
+					                 MOVE -1 TO WRK-NULLIND-FIL-A
+					              ELSE
+						                MOVE PRF-FILIAL TO FILIALCNPJA-CLI
+						                MOVE 0 TO WRK-NULLIND-FIL-A
+					                 MOVE -1 TO WRK-NULLIND-FIL-N
+					              END-IF
+					
+			              MOVE PRF-CONTROLE TO CTLCNPJ-CLI
+		            END-IF
+	          END-IF.
+	      15500-99-MOVE-PARA-VAR-DB. EXIT.
+	     *
+	      16000-ATUALIZA-DB.
+			        PERFORM 14500-MOVE-DATAS-DB.
+			        MOVE PRF-CODIGOCLI TO CODIGO-CLI.
+
+			        EXEC SQL
+			        UPDATE ALUNO03.CLIENTPJ
+			        SET
+			              RAZSOCIAL_CLI = :RAZSOCIAL-CLI,
+			              NUMECNPJ_CLI = :NUMECNPJ-CLI:WRK-NULLIND-CNPJ-N,
+			              FILIALCNPJ_CLI = :FILIALCNPJ-CLI:WRK-NULLIND-FIL-N,
+			              CTLCNPJ_CLI = :CTLCNPJ-CLI,
+			              NUMECNPJA_CLI = :NUMECNPJA-CLI:WRK-NULLIND-CNPJ-A,
+			              FILIALCNPJA_CLI = :FILIALCNPJA-CLI:WRK-NULLIND-FIL-A,
+			              SALDO_CLI = :SALDO-CLI,
+			              VRULTCOMPRA_CLI = :VRULTCOMPRA-CLI,
+			              DTULTCOMPRA_CLI = :DTULTCOMPRA-CLI,
+			              DTATLZDADOS_CLI = :DTATLZDADOS-CLI
+	          WHERE CODIGO_CLI = :CODIGO-CLI
+	          END-EXEC.
+	      16000-99-ATUALIZA-DB. EXIT.
+	     *
+	     * INATIVACAO NO DB
+	     *
+	      17000-INATIVA-REG.
+			        PERFORM 14500-MOVE-DATAS-DB.
+			        MOVE PRF-DATAOPER TO WRK-DATA-DB.
+			        MOVE CORR WRK-DATA-DB TO WRK-DATA-DB-F.
+			        MOVE WRK-DATA-DB-F TO DTINATIVA-CLI.
+			
+			        MOVE 0 TO WRK-NULLIND-DATA-I.
+			
+           MOVE PRF-CODIGOCLI TO CODIGO-CLI.
+
+			        EXEC SQL
+			        UPDATE ALUNO03.CLIENTPJ
+			        SET
+			           DTULTCOMPRA_CLI = :DTULTCOMPRA-CLI,
+			           DTATLZDADOS_CLI = :DTATLZDADOS-CLI,
+			           DTINATIVA_CLI   = :DTINATIVA-CLI:WRK-NULLIND-DATA-I
+	             WHERE CODIGO_CLI = :CODIGO-CLI
+	          END-EXEC.
+	      17000-99-INATIVA-REG. EXIT.
+	     *
+	     * TRATAMENTO DE ERRO DB
+	     *
+	      18000-VER-ERRO-SQL.
+           IF SQLCODE < 0
+              MOVE SQLCODE TO WRK-SQLCODE
+              MOVE WRK-SQLCODE TO MSG-SQLCODE
+              PERFORM 19000-DISPLAY-ERRO-DB
+           END-IF.
+	      18000-99-VER-ERRO-SQL. EXIT.
+	     *
+       19000-DISPLAY-ERRO-DB.
+           DISPLAY ' '.
+   	       DISPLAY MSG-ERRO.
+	          DISPLAY MSG-NOME-DB2.
+		         DISPLAY MSG-NOME-OP.
+		         DISPLAY MSG-SQLERROR.
+		         DISPLAY ' '.
+		         DISPLAY MSG-FINAL.
+
+           MOVE 12 TO RETURN-CODE.
+           GOBACK.
+        19000-99-DISPLAY-ERRO-DB. EXIT.

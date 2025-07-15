@@ -1,0 +1,16 @@
+      *---------------------------------------------------------*
+      * REGISTRO COM DADOS PARA ATUALIZACAO DA TABELA CLIENTPJ  *
+      * - ARQUIVO SEQUENCIAL - LRECL 80 POSICOES                *
+      *---------------------------------------------------------*
+      *
+       01 PRF-DADOSCLI.
+          PRF-OPERACAO                 PIC X(001)    VALUE SPACE.
+          PRF-CODIGOCLI                PIC 9(005)    VALUE ZEROS.
+          PRF-RAZAOSOCIAL              PIC X(040)    VALUE SPACE.
+          PRF-CNPJ                     PIC X(009)    VALUE SPACE.
+          PRF-FILIAL                   PIC X(004)    VALUE SPACE.
+          PRF-CONTROLE                 PIC 9(002)    VALUE ZEROS.
+          PRF-VLRULTCOMPRA    COMP-3   PIC 9(011)V99 VALUE ZEROS.
+          PRF-DATAOPER                 PIC 9(008)    VALUE ZEROS.
+          PRF-RESERVA                  PIC X(004)    VALUE SPACE.
+      *
